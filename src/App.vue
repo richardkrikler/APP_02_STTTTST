@@ -1,31 +1,211 @@
-<script setup>
-// This starter template is using Vue 3 <script setup> SFCs
-// Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
-import HelloWorld from './components/HelloWorld.vue'
-</script>
+<script setup></script>
 
 <template>
-  <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
+  <div class="h-screen flex justify-center items-center flex-col">
+    <div class="alert alert-error shadow-lg w-6/12 mb-10" v-if="error">
+      <div>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="stroke-current flex-shrink-0 h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{{ error }}</span>
+      </div>
+    </div>
+
+    <h1 class="text-4xl">STTTTST</h1>
+    <h2 class="text-2xl mt-2.5 mb-5">
+      Speech-to-Text Text-to-Speech Translation
+    </h2>
+
+    <!-- https://www.npmjs.com/package/vue-select -->
+    <!-- https://vue-select.org/guide/install.html -->
+    <p class="mt-5" id="fromLanguage">From Language</p>
+    <v-select
+      :options="voicesSelectAr"
+      :reduce="displayName => displayName"
+      label="displayName"
+      v-model="recordLang"
+      class="w-3/12 my-2.5"></v-select>
+
+    <p class="mt-2">To Language</p>
+    <v-select
+      :options="voicesSelectAr"
+      :reduce="displayName => displayName"
+      label="displayName"
+      v-model="translationLang"
+      class="w-3/12 my-2.5"></v-select>
+
+    <textarea
+      class="textarea textarea-bordered w-4/12 mb-3 mt-6"
+      placeholder="Recorded Text"
+      v-model="recordedText"></textarea>
+
+    <textarea
+      class="textarea textarea-bordered w-4/12 mt-3 mb-6"
+      placeholder="Translation"
+      v-model="translatedText"></textarea>
+
+    <div class="flex justify-center gap-3 my-2.5 w-3/12">
+      <button
+        class="btn btn-primary w-7/12"
+        :class="isRecording ? 'animate-pulse' : ''"
+        @click="record">
+        {{ isRecording ? 'Stop' : 'Record' }}
+      </button>
+
+      <button class="btn btn-primary w-7/12" @click="translate">
+        Translate
+      </button>
+
+      <button class="btn btn-primary w-7/12" @click="play">Play</button>
+    </div>
   </div>
-  <HelloWorld msg="Vite + Vue" />
 </template>
 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
+<script>
+const synth = window.speechSynthesis
+let SpeechRecognition
+
+import axios from 'axios'
+
+export default {
+  components: {},
+
+  data() {
+    return {
+      error: null,
+      voices: [],
+      voicesSelectAr: [],
+      recordLang: null,
+      translationLang: null,
+      isRecording: false,
+      recordedText: '',
+      translatedText: ''
+    }
+  },
+
+  methods: {
+    requestVoices() {
+      this.voices = synth.getVoices()
+
+      // sort by lang-code
+      this.voices.sort((a, b) => {
+        const aname = a.lang.toUpperCase()
+        const bname = b.lang.toUpperCase()
+
+        if (aname < bname) {
+          return -1
+        } else if (aname == bname) {
+          return 0
+        } else {
+          return +1
+        }
+      })
+
+      this.voicesSelectAr = this.voices.map(v => {
+        return {
+          name: v.name,
+          lang: v.lang,
+          displayName:
+            `${v.name} (${v.lang})` + (v.default ? ' -- DEFAULT' : '')
+        }
+      })
+      // console.log(this.voices)
+    },
+
+    record() {
+      this.isRecording = !this.isRecording
+
+      /**
+       * https://mdn.github.io/dom-examples/web-speech-api/phrase-matcher
+       * https://github.com/mdn/dom-examples/blob/main/web-speech-api/phrase-matcher/script.js
+       */
+      let recognition = new SpeechRecognition()
+      recognition.lang = this.recordLang.lang
+
+      recognition.start()
+
+      recognition.onresult = event => {
+        let speechResult = event.results[0][0].transcript
+        this.recordedText = speechResult
+        this.isRecording = false
+      }
+    },
+
+    async translate() {
+      // import.meta.env.VITE_RAPID_API_KEY -> import  API-Key from .env
+
+      if (this.recordLang === null || this.translationLang === null) {
+        console.error('Please select From/To Languages!')
+        return
+      }
+
+      /**
+       * https://libretranslate.com
+       * https://github.com/LibreTranslate/LibreTranslate
+       * https://libretranslate.com/docs
+       * Hosted via Docker-Container -> Port: 5174 (default: 5000)
+       */
+      axios
+        .post('http://localhost:5174/translate', {
+          q: this.recordedText,
+          source: this.recordLang.lang.substring(0, 2),
+          target: this.translationLang.lang.substring(0, 2),
+        })
+        .then(res => this.translatedText = res.data.translatedText)
+    },
+
+    play() {
+      /**
+       * https://mdn.github.io/dom-examples/web-speech-api/speak-easy-synthesis
+       * https://github.com/mdn/dom-examples/blob/main/web-speech-api/speak-easy-synthesis/script.js
+       */
+
+      if (synth.speaking) {
+        console.error('speechSynthesis.speaking')
+        return
+      }
+
+      if (this.translatedText !== '') {
+        const utterThis = new SpeechSynthesisUtterance(this.translatedText)
+
+        utterThis.onend = function (event) {
+          console.log('SpeechSynthesisUtterance.onend')
+        }
+
+        utterThis.onerror = function (event) {
+          console.error('SpeechSynthesisUtterance.onerror')
+        }
+
+        const voiceIndex = this.voices.findIndex(
+          v => v.name === this.translationLang.name
+        )
+        if (voiceIndex >= 0) {
+          utterThis.voice = this.voices[voiceIndex]
+        }
+
+        synth.speak(utterThis)
+      }
+    }
+  },
+
+  created() {
+    try {
+      SpeechRecognition = webkitSpeechRecognition
+    } catch (e) {
+      this.error = e
+    }
+
+    setTimeout(() => {
+      this.requestVoices()
+    }, 100)
+  }
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
-}
-</style>
+</script>
