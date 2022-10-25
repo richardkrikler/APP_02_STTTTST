@@ -112,6 +112,11 @@ export default {
         }
       })
 
+      // remove duplicate entries from array -> Set
+      this.languagesSelectAr = [
+        ...new Set(this.voices.map(v => v.lang.substring(0, 2)))
+      ]
+
       this.voicesSelectAr = this.voices.map(v => {
         return {
           name: v.name,
@@ -121,10 +126,6 @@ export default {
             `${v.name} (${v.lang})` + (v.default ? ' -- DEFAULT' : '')
         }
       })
-      this.languagesSelectAr = [
-        ...new Set(this.voices.map(v => v.lang.substring(0, 2)))
-      ]
-      // console.log(this.voices)
     },
 
     /**
@@ -170,8 +171,6 @@ export default {
      * Usage: URL as prefix in front of URL for LibreTranslate
      */
     async translate() {
-      // import.meta.env.VITE_RAPID_API_KEY -> import  API-Key from .env
-
       if (this.recordLang === null || this.translationLang === null) {
         console.error('Please select From/To Languages!')
         return
