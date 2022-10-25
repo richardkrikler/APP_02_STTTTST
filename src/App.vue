@@ -76,8 +76,6 @@ let SpeechRecognition
 import axios from 'axios'
 
 export default {
-  components: {},
-
   data() {
     return {
       error: null,
@@ -87,11 +85,16 @@ export default {
       translationLang: null,
       isRecording: false,
       recordedText: '',
-      translatedText: ''
+      translatedText: '',
+      recognition: null
     }
   },
 
   methods: {
+    /**
+     * https://mdn.github.io/dom-examples/web-speech-api/speak-easy-synthesis
+     * https://github.com/mdn/dom-examples/blob/main/web-speech-api/speak-easy-synthesis/script.js
+     */
     requestVoices() {
       this.voices = synth.getVoices()
 
@@ -120,25 +123,48 @@ export default {
       // console.log(this.voices)
     },
 
+    /**
+     * https://mdn.github.io/dom-examples/web-speech-api/phrase-matcher
+     * https://github.com/mdn/dom-examples/blob/main/web-speech-api/phrase-matcher/script.js
+     */
     record() {
       this.isRecording = !this.isRecording
 
-      /**
-       * https://mdn.github.io/dom-examples/web-speech-api/phrase-matcher
-       * https://github.com/mdn/dom-examples/blob/main/web-speech-api/phrase-matcher/script.js
-       */
-      let recognition = new SpeechRecognition()
-      recognition.lang = this.recordLang.lang
+      if (!this.isRecording) {
+        this.recognition.stop()
+        return
+      }
 
-      recognition.start()
+      this.recognition.lang = this.recordLang.lang
 
-      recognition.onresult = event => {
+      this.recognition.start()
+
+      this.recognition.onresult = event => {
         let speechResult = event.results[0][0].transcript
         this.recordedText = speechResult
         this.isRecording = false
       }
     },
 
+    /**
+     * -- Translator: LibreTranslate --
+     * https://libretranslate.com
+     * https://github.com/LibreTranslate/LibreTranslate
+     * https://libretranslate.com/docs
+     * Installation: pip install libretranslate
+     * Start (ignore error-msg): libretranslate
+     * Hosted via PiP-Service -> Port: 5000 (default)
+     *
+     *
+     * -- CORS-Error --
+     * CORS-Error: NodeJS CORS Proxy
+     * https://github.com/Rob--W/cors-anywhere
+     * https://www.npmjs.com/package/cors-anywhere
+     * Install (not in project folder): npm i cors-anywhere
+     * Used example code from GitHub -> index.js
+     * Port: 5050 (default: 8080)
+     * Usage: URL as prefix in front of URL for LibreTranslate
+     */
     async translate() {
       // import.meta.env.VITE_RAPID_API_KEY -> import  API-Key from .env
 
@@ -147,27 +173,20 @@ export default {
         return
       }
 
-      /**
-       * https://libretranslate.com
-       * https://github.com/LibreTranslate/LibreTranslate
-       * https://libretranslate.com/docs
-       * Hosted via Docker-Container -> Port: 5174 (default: 5000)
-       */
       axios
-        .post('http://localhost:5174/translate', {
+        .post('http://localhost:5050/127.0.0.1:5000/translate', {
           q: this.recordedText,
           source: this.recordLang.lang.substring(0, 2),
-          target: this.translationLang.lang.substring(0, 2),
+          target: this.translationLang.lang.substring(0, 2)
         })
-        .then(res => this.translatedText = res.data.translatedText)
+        .then(res => (this.translatedText = res.data.translatedText))
     },
 
+    /**
+     * https://mdn.github.io/dom-examples/web-speech-api/speak-easy-synthesis
+     * https://github.com/mdn/dom-examples/blob/main/web-speech-api/speak-easy-synthesis/script.js
+     */
     play() {
-      /**
-       * https://mdn.github.io/dom-examples/web-speech-api/speak-easy-synthesis
-       * https://github.com/mdn/dom-examples/blob/main/web-speech-api/speak-easy-synthesis/script.js
-       */
-
       if (synth.speaking) {
         console.error('speechSynthesis.speaking')
         return
@@ -199,6 +218,7 @@ export default {
   created() {
     try {
       SpeechRecognition = webkitSpeechRecognition
+      this.recognition = new SpeechRecognition()
     } catch (e) {
       this.error = e
     }
