@@ -28,9 +28,8 @@
     <!-- https://vue-select.org/guide/install.html -->
     <p class="mt-5" id="fromLanguage">From Language</p>
     <v-select
-      :options="voicesSelectAr"
-      :reduce="displayName => displayName"
-      label="displayName"
+      :options="languagesSelectAr"
+      label="lang"
       v-model="recordLang"
       class="w-3/12 my-2.5"></v-select>
 
@@ -81,6 +80,7 @@ export default {
       error: null,
       voices: [],
       voicesSelectAr: [],
+      languagesSelectAr: [],
       recordLang: null,
       translationLang: null,
       isRecording: false,
@@ -116,10 +116,14 @@ export default {
         return {
           name: v.name,
           lang: v.lang,
+          shortcode: v.lang.substring(0, 2),
           displayName:
             `${v.name} (${v.lang})` + (v.default ? ' -- DEFAULT' : '')
         }
       })
+      this.languagesSelectAr = [
+        ...new Set(this.voices.map(v => v.lang.substring(0, 2)))
+      ]
       // console.log(this.voices)
     },
 
@@ -135,7 +139,7 @@ export default {
         return
       }
 
-      this.recognition.lang = this.recordLang.lang
+      this.recognition.lang = this.recordLang
 
       this.recognition.start()
 
@@ -176,8 +180,8 @@ export default {
       axios
         .post('http://localhost:5050/127.0.0.1:5000/translate', {
           q: this.recordedText,
-          source: this.recordLang.lang.substring(0, 2),
-          target: this.translationLang.lang.substring(0, 2)
+          source: this.recordLang,
+          target: this.translationLang.shortcode
         })
         .then(res => (this.translatedText = res.data.translatedText))
     },
